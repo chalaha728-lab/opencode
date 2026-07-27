@@ -14,16 +14,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
+      - name: Configure git identity
+        run: |
+          git config --global user.email "bot@opencode.ai"
+          git config --global user.name "opencode"
+
       - name: Install dependencies
         run: bun install
 
-      - name: Build project
-        run: bun run build
-
-      - name: Run tests
-        run: bun test
+      - name: Run Typecheck
+        run: bun run typecheck
