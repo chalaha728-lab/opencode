@@ -14,6 +14,7 @@ import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { useLayout } from "@/context/layout"
 import { useTabs } from "@/context/tabs"
 import { useServerSync } from "@/context/server-sync"
+import { SettingsSmartAgent } from "../settings-smart-agent"
 
 export const DialogSettings: Component<{
   sessionID?: string
@@ -26,87 +27,35 @@ export const DialogSettings: Component<{
   const tabs = useTabs()
   const serverSync = useServerSync()
   const [tab, setTab] = createSignal(props.defaultValue ?? "general")
-  const directory = createMemo(() => {
-    const route = layout.route()
-    if (route.type === "dir-new-sesssion") return route.dir
-    if (route.type === "draft") {
-      const draft = tabs.store.find((item) => item.type === "draft" && item.draftID === route.draftID)
-      return draft?.type === "draft" ? draft.directory : undefined
-    }
-    if (route.type === "session") return serverSync().session.get(route.sessionId)?.directory
-    return undefined
-  })
-
-  const showProviders = () => {
-    void dialog.show(() => <DialogSettings sessionID={props.sessionID} defaultValue="providers" />)
-  }
 
   return (
-    <Dialog size="x-large" variant="settings" class="settings-v2-dialog">
-      <TabsV2
-        orientation="vertical"
-        variant="settings"
-        value={tab()}
-        onChange={(value) => void startTransition(() => setTab(value))}
-        class="settings-v2"
-      >
+    <Dialog title={language.t("dialog.settings.title")} onClose={() => dialog.clear()}>
+      <TabsV2 value={tab()} onChange={(val) => startTransition(() => setTab(val))}>
         <TabsV2.List>
-          <div class="flex flex-col justify-between h-full w-full">
-            <div class="flex flex-col gap-3 w-full">
-              <div class="flex flex-col gap-3">
-                <div class="flex flex-col gap-1.5">
-                  <TabsV2.SectionTitle>{language.t("settings.section.desktop")}</TabsV2.SectionTitle>
-                  <div class="flex flex-col gap-1.5 w-full">
-                    <TabsV2.Trigger value="general">
-                      <Icon name="sliders" />
-                      {language.t("settings.tab.general")}
-                    </TabsV2.Trigger>
-                    <TabsV2.Trigger value="shortcuts">
-                      <Icon name="keyboard" />
-                      {language.t("settings.tab.shortcuts")}
-                    </TabsV2.Trigger>
-                  </div>
-                </div>
-
-                <div class="flex flex-col gap-1.5">
-                  <TabsV2.SectionTitle>{language.t("settings.section.server")}</TabsV2.SectionTitle>
-                  <div class="flex flex-col gap-1.5 w-full">
-                    <TabsV2.Trigger value="servers">
-                      <Icon name="server" />
-                      {language.t("status.popover.tab.servers")}
-                    </TabsV2.Trigger>
-                    <TabsV2.Trigger value="providers">
-                      <Icon name="providers" />
-                      {language.t("settings.providers.title")}
-                    </TabsV2.Trigger>
-                    <TabsV2.Trigger value="models">
-                      <Icon name="models" />
-                      {language.t("settings.models.title")}
-                    </TabsV2.Trigger>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="settings-v2-nav-footer">
-              <span>{language.t("app.name.desktop")}</span>
-              <span>v{platform.version}</span>
-            </div>
-          </div>
+          <TabsV2.Trigger value="general">{language.t("dialog.settings.tab.general")}</TabsV2.Trigger>
+          <TabsV2.Trigger value="smart-agent" id="tab-smart-agent-v2">smart-agent</TabsV2.Trigger>
+          <TabsV2.Trigger value="models">{language.t("dialog.settings.tab.models")}</TabsV2.Trigger>
+          <TabsV2.Trigger value="providers">{language.t("dialog.settings.tab.providers")}</TabsV2.Trigger>
+          <TabsV2.Trigger value="keybinds">{language.t("dialog.settings.tab.keybinds")}</TabsV2.Trigger>
+          <TabsV2.Trigger value="servers">{language.t("dialog.settings.tab.mcp_servers")}</TabsV2.Trigger>
         </TabsV2.List>
-        <TabsV2.Content value="general" class="settings-v2-panel">
-          <SettingsGeneralV2 sessionID={props.sessionID} />
+        <TabsV2.Content value="general">
+          <SettingsGeneralV2 />
         </TabsV2.Content>
-        <TabsV2.Content value="shortcuts" class="settings-v2-panel">
-          <SettingsKeybinds v2 />
+        <TabsV2.Content value="smart-agent">
+          <SettingsSmartAgent />
         </TabsV2.Content>
-        <TabsV2.Content value="servers" class="settings-v2-panel">
-          <SettingsServersV2 />
-        </TabsV2.Content>
-        <TabsV2.Content value="providers" class="settings-v2-panel">
-          <SettingsProvidersV2 directory={directory} onBack={showProviders} />
-        </TabsV2.Content>
-        <TabsV2.Content value="models" class="settings-v2-panel">
+        <TabsV2.Content value="models">
           <SettingsModelsV2 />
+        </TabsV2.Content>
+        <TabsV2.Content value="providers">
+          <SettingsProvidersV2 />
+        </TabsV2.Content>
+        <TabsV2.Content value="keybinds">
+          <SettingsKeybinds />
+        </TabsV2.Content>
+        <TabsV2.Content value="servers">
+          <SettingsServersV2 />
         </TabsV2.Content>
       </TabsV2>
     </Dialog>
