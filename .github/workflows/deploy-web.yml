@@ -1,0 +1,77 @@
+name: Fast Web Preview Deploy
+
+on:
+  push:
+    branches:
+      - windows-only-build
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deploy-web:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+
+      - name: Inline Catalog & Fix Workspace
+        shell: bash
+        run: |
+          node -e "
+            const fs = require('fs');
+            const path = require('path');
+            const rootPkg = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
+            let catalog = Object.assign({}, (rootPkg.workspaces && rootPkg.workspaces.catalog) || {}, rootPkg.catalog || {});
+            const fallbacks = {
+              '@typescript/native-preview': 'latest', 'marked-shiki': 'latest', 'remeda': 'latest', 'zod': '^3.24.2',
+              'typescript': '~5.6.2', 'fuzzysort': 'latest', 'luxon': 'latest', 'marked': 'latest', 'hono': 'latest',
+              'hono-openapi': 'latest', '@playwright/test': 'latest', 'sst': 'latest', '@tsconfig/bun': 'latest'
+            };
+            for (const [k, v] of Object.entries(fallbacks)) { if (!catalog[k]) catalog[k] = v; }
+            if (rootPkg.workspaces && !Array.isArray(rootPkg.workspaces)) rootPkg.workspaces = rootPkg.workspaces.packages || ['packages/*'];
+            rootPkg.catalog = catalog;
+            function processDir(dir) {
+              try {
+                for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+                  if (entry.name === 'node_modules' || entry.name === '.git') continue;
+                  const fp = path.join(dir, entry.name);
+                  if (entry.isDirectory()) processDir(fp);
+                  else if (entry.name === 'package.json') {
+                    let changed = false;
+                    const pkg = JSON.parse(fs.readFileSync(fp, 'utf8'));
+                    ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies', 'overrides'].forEach(dt => {
+                      if (pkg[dt]) {
+                        for (const [name, ver] of Object.entries(pkg[dt])) {
+                          if (typeof ver === 'string' && ver.startsWith('catalog:')) {
+                            pkg[dt][name] = catalog[name] || 'latest';
+                            changed = true;
+                          }
+                        }
+                      }
+                    });
+                    if (changed) fs.writeFileSync(fp, JSON.stringify(pkg, null, 2) + '\n');
+                  }
+                }
+              } catch(e) {}
+            }
+            processDir('.');
+            fs.writeFileSync('./package.json', JSON.stringify(rootPkg, null, 2) + '\n');
+          "
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build Web App
+        run: bun run build
+        working-directory: packages/app
+
+      - name: Deploy Live Web Preview to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: packages/app/dist
